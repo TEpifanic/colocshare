@@ -1,0 +1,82 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Règles pour les API Routes NextJS
+
+Applies to: **/app/api/**/*.ts
+
+## Structure des API routes
+
+- Utilisez Zod pour la validation des entrées
+- Suivez une structure cohérente pour les réponses API
+- Gérez correctement les erreurs avec des codes HTTP appropriés
+- Utilisez des middlewares pour l'authentification et l'autorisation
+- Documentez les paramètres et les réponses
+
+## Exemple de structure
+
+```typescript
+import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
+import { prisma } from '@/lib/prisma';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+
+// Schéma de validation pour la création d'un utilisateur
+const createUserSchema = z.object({
+  name: z.string().min(2).max(50),
+  email: z.string().email(),
+  role: z.enum(['USER', 'ADMIN']).optional().default('USER'),
+});
+
+export async function POST(req: NextRequest) {
+  try {
+    // Vérification de l'authentification
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json(
+        { error: 'Non autorisé' },
+        { status: 401 }
+      );
+    }
+
+    // Vérification des autorisations
+    if (session.user.role !== 'ADMIN') {
+      return NextResponse.json(
+        { error: 'Permission refusée' },
+        { status: 403 }
+      );
+    }
+
+    // Validation des données d'entrée
+    const body = await req.json();
+    const validationResult = createUserSchema.safeParse(body);
+    
+    if (!validationResult.success) {
+      return NextResponse.json(
+        { error: 'Données invalides', details: validationResult.error.format() },
+        { status: 400 }
+      );
+    }
+
+    // Traitement de la requête
+    const data = validationResult.data;
+    const user = await prisma.user.create({
+      data,
+    });
+
+    // Réponse
+    return NextResponse.json(
+      { data: user },
+      { status: 201 }
+    );
+  } catch (error) {
+    console.error('Erreur lors de la création de l\'utilisateur:', error);
+    return NextResponse.json(
+      { error: 'Erreur serveur' },
+      { status: 500 }
+    );
+  }
+}

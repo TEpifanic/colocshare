@@ -1,0 +1,47 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Règles pour les composants React
+
+Applies to: **/*.tsx
+
+## Structure des composants
+
+- Chaque composant doit être dans son propre fichier
+- Exportez le composant comme export par défaut
+- Définissez les types d'interface avant le composant
+- Utilisez la déstructuration pour les props
+- Placez les hooks au début du composant
+- Utilisez des commentaires pour expliquer la logique complexe
+
+## Exemple de structure
+
+```tsx
+import { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+
+interface UserCardProps {
+  userId: string;
+  showDetails?: boolean;
+}
+
+export default function UserCard({ userId, showDetails = false }: UserCardProps) {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Logique pour charger les données utilisateur
+  }, [userId]);
+
+  // Rendu conditionnel basé sur l'état
+  if (loading) return <LoadingSkeleton />;
+  if (!user) return <ErrorState />;
+
+  return (
+    <div className="p-4 border rounded-lg">
+      {/* Contenu du composant */}
+    </div>
+  );
+}

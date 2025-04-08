@@ -1,0 +1,317 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  expires   DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@index([token])
+}
+
+model OtpToken {
+  id        String   @id @default(cuid())
+  email     String
+  code      String
+  type      OtpType  @default(LOGIN)
+  expires   DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@index([code])
+}
+
+model User {
+  id             String         @id @default(cuid())
+  name           String?
+  email          String         @unique
+  avatar         String?
+  password       String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  emailVerified  DateTime?
+  accounts       Account[]
+  expenses       Expense[]      @relation("ExpenseCreator")
+  invitations    Invitation[]
+  memberships    Membership[]
+  messages       Message[]      @relation("SentMessages")
+  payments       Payment[]
+  sessions       Session[]
+  purchasedItems ShoppingItem[] @relation("PurchasedBy")
+  shoppingItems  ShoppingItem[] @relation("UserItems")
+  assignedTasks  Task[]         @relation("TaskAssignee")
+  participantIn  Expense[]      @relation("ExpenseParticipants")
+
+  @@index([email])
+}
+
+model Colocation {
+  id            String          @id @default(cuid())
+  name          String
+  address       String
+  description   String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  events        CalendarEvent[]
+  documents     Document[]
+  expenses      Expense[]
+  invitations   Invitation[]
+  memberships   Membership[]
+  messages      Message[]
+  rules         Rule[]
+  shoppingItems ShoppingItem[]
+  tasks         Task[]
+
+  @@index([name])
+}
+
+model Membership {
+  id           String     @id @default(cuid())
+  role         Role       @default(MEMBER)
+  joinedAt     DateTime   @default(now())
+  leftAt       DateTime?
+  updatedAt    DateTime   @updatedAt
+  userId       String
+  colocationId String
+  colocation   Colocation @relation(fields: [colocationId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, colocationId])
+  @@index([userId])
+  @@index([colocationId])
+}
+
+model Expense {
+  id           String        @id @default(cuid())
+  title        String
+  amount       Float
+  description  String?
+  date         DateTime      @default(now())
+  category     Category      @default(OTHER)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  status       ExpenseStatus @default(PENDING)
+  creatorId    String
+  colocationId String
+  colocation   Colocation    @relation(fields: [colocationId], references: [id], onDelete: Cascade)
+  creator      User          @relation("ExpenseCreator", fields: [creatorId], references: [id])
+  payments     Payment[]
+  participants User[]        @relation("ExpenseParticipants")
+
+  @@index([colocationId])
+  @@index([creatorId])
+}
+
+model Payment {
+  id        String        @id @default(cuid())
+  amount    Float
+  date      DateTime      @default(now())
+  status    PaymentStatus @default(PENDING)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  userId    String
+  expenseId String
+  expense   Expense       @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  user      User          @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([expenseId])
+}
+
+model Rule {
+  id           String     @id @default(cuid())
+  title        String
+  description  String
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  colocationId String
+  colocation   Colocation @relation(fields: [colocationId], references: [id], onDelete: Cascade)
+
+  @@index([colocationId])
+}
+
+model Task {
+  id               String        @id @default(cuid())
+  name             String
+  description      String
+  dueDate          DateTime
+  completed        Boolean       @default(false)
+  recurring        TaskFrequency @default(NONE)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  assignedToUserId String?
+  colocationId     String
+  assignedTo       User?         @relation("TaskAssignee", fields: [assignedToUserId], references: [id])
+  colocation       Colocation    @relation(fields: [colocationId], references: [id], onDelete: Cascade)
+
+  @@index([colocationId])
+  @@index([assignedToUserId])
+}
+
+model Invitation {
+  id           String     @id @default(cuid())
+  email        String
+  token        String     @unique
+  status       String
+  expiresAt    DateTime
+  createdAt    DateTime   @default(now())
+  colocationId String
+  createdById  String
+  colocation   Colocation @relation(fields: [colocationId], references: [id], onDelete: Cascade)
+  createdBy    User       @relation(fields: [createdById], references: [id])
+
+  @@index([email])
+  @@index([token])
+  @@index([colocationId])
+  @@index([createdById])
+}
+
+model CalendarEvent {
+  id           String     @id @default(cuid())
+  title        String
+  description  String?
+  startDate    DateTime
+  endDate      DateTime
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  colocationId String
+  colocation   Colocation @relation(fields: [colocationId], references: [id], onDelete: Cascade)
+
+  @@index([colocationId])
+}
+
+model Document {
+  id           String     @id @default(cuid())
+  name         String
+  url          String
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  colocationId String
+  colocation   Colocation @relation(fields: [colocationId], references: [id], onDelete: Cascade)
+
+  @@index([colocationId])
+}
+
+model Message {
+  id           String     @id @default(cuid())
+  content      String
+  createdAt    DateTime   @default(now())
+  senderId     String
+  colocationId String
+  colocation   Colocation @relation(fields: [colocationId], references: [id], onDelete: Cascade)
+  sender       User       @relation("SentMessages", fields: [senderId], references: [id])
+
+  @@index([senderId])
+  @@index([colocationId])
+}
+
+model ShoppingItem {
+  id               String     @id @default(cuid())
+  name             String
+  quantity         Int
+  unit             String?
+  category         String?
+  price            Float?
+  shared           Boolean    @default(true)
+  purchased        Boolean    @default(false)
+  purchasedAt      DateTime?
+  needVerification Boolean    @default(false)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  userId           String
+  purchasedById    String?
+  colocationId     String
+  colocation       Colocation @relation(fields: [colocationId], references: [id], onDelete: Cascade)
+  purchasedBy      User?      @relation("PurchasedBy", fields: [purchasedById], references: [id])
+  user             User       @relation("UserItems", fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([purchasedById])
+  @@index([colocationId])
+}
+
+enum OtpType {
+  LOGIN
+  SIGNUP
+  RESET_PASSWORD
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum Category {
+  RENT
+  UTILITIES
+  GROCERIES
+  HOUSEHOLD
+  ENTERTAINMENT
+  OTHER
+}
+
+enum ExpenseStatus {
+  PENDING
+  SETTLED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+enum TaskFrequency {
+  NONE
+  DAILY
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+}
