@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { NextAuthProvider } from "@/components/providers/auth-provider";
+import { NavigationProvider } from "@/components/providers/navigation-provider";
 import { Inter } from 'next/font/google';
 import { AuthProvider } from '@/contexts/AuthContext';
+import NavigationIndicator from "@/components/ui/navigation-indicator";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,7 +35,12 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased ${inter.className}`}
       >
         <AuthProvider>
-          <NextAuthProvider>{children}</NextAuthProvider>
+          <NextAuthProvider>
+            <NavigationProvider>
+              <NavigationIndicator />
+              {children}
+            </NavigationProvider>
+          </NextAuthProvider>
         </AuthProvider>
       </body>
     </html>

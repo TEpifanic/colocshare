@@ -70,6 +70,7 @@ model User {
   emailVerified  DateTime?
   accounts       Account[]
   expenses       Expense[]      @relation("ExpenseCreator")
+  expenseShares  ExpenseShare[]
   invitations    Invitation[]
   memberships    Membership[]
   messages       Message[]      @relation("SentMessages")
@@ -120,21 +121,23 @@ model Membership {
 }
 
 model Expense {
-  id           String        @id @default(cuid())
+  id           String         @id @default(cuid())
   title        String
   amount       Float
   description  String?
-  date         DateTime      @default(now())
-  category     Category      @default(OTHER)
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  status       ExpenseStatus @default(PENDING)
+  date         DateTime       @default(now())
+  category     Category       @default(OTHER)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  status       ExpenseStatus  @default(PENDING)
   creatorId    String
   colocationId String
-  colocation   Colocation    @relation(fields: [colocationId], references: [id], onDelete: Cascade)
-  creator      User          @relation("ExpenseCreator", fields: [creatorId], references: [id])
+  isSettled    Boolean        @default(false)
+  colocation   Colocation     @relation(fields: [colocationId], references: [id], onDelete: Cascade)
+  creator      User           @relation("ExpenseCreator", fields: [creatorId], references: [id])
+  shares       ExpenseShare[]
   payments     Payment[]
-  participants User[]        @relation("ExpenseParticipants")
+  participants User[]         @relation("ExpenseParticipants")
 
   @@index([colocationId])
   @@index([creatorId])
@@ -266,6 +269,22 @@ model ShoppingItem {
   @@index([userId])
   @@index([purchasedById])
   @@index([colocationId])
+}
+
+model ExpenseShare {
+  id        String   @id @default(cuid())
+  amount    Float
+  isPaid    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+  userId    String
+  expenseId String
+  expense   Expense  @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, expenseId])
+  @@index([expenseId])
+  @@index([userId])
 }
 
 enum OtpType {
